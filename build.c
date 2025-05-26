@@ -4,6 +4,7 @@
 
 #define TARGET  "tinyld"
 #define SRC_DIR "src"
+#define CC      "clang"
 
 void compile(void)
 {
@@ -12,7 +13,7 @@ void compile(void)
 
     cmd_t cmd = {0};
     cmd_init(&cmd);
-    cmd_append_arg(&cmd, "gcc");
+    cmd_append_arg(&cmd, CC);
     cmd_append_arg(&cmd, "-Wall", "-Wextra");
     cmd_append_arg(&cmd, "-I", SRC_DIR, "-I", ".");
     cmd_append_arg(&cmd, "-o", TARGET);

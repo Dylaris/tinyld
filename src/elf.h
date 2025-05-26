@@ -41,10 +41,49 @@ typedef struct elf64_header {
     u16 e_shstrndx;
 } ehdr_t;
 
+#define SHT_PROGBITS    1
+#define SHT_SYMTAB      2
+#define SHT_STRTAB      3
+#define SHT_RELA        4
+#define SHT_DYNAMIC     6
+#define SHT_REL         9
+#define SHT_DYNSYM      11
+
+#define SHF_WRITE       (1 << 0)
+#define SHF_ALLOC       (1 << 1)
+#define SHF_EXECINSTR   (1 << 2)
+
 typedef struct section_header {
+    u32 sh_name;
+    u32 sh_type;
+    u64 sh_flags;
+    u64 sh_addr;
+    u64 sh_offset;
+    u64 sh_size;
+    u32 sh_link;
+    u32 sh_info;
+    u64 sh_addralign;
+    u64 sh_entsize;
 } shdr_t;
 
+#define PT_LOAD     1
+#define PT_DYNAMIC  2
+#define PT_INTERP   3
+#define PT_PHDR     6
+
+#define PF_X (1 << 0)
+#define PF_W (1 << 1)
+#define PF_R (1 << 2)
+
 typedef struct program_header {
+    u32 p_type;
+    u32 p_flags;
+    u64 p_offset;
+    u64 p_vaddr;
+    u64 p_paddr;
+    u64 p_filesz;
+    u64 p_memsz;
+    u64 p_align;
 } phdr_t;
 
 #endif // TINYLD_ELF_H
