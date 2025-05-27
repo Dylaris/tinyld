@@ -1,13 +1,16 @@
+/// load the file and deserialize it to well-defined structure
+
 #include "tinyld.h"
 
 static bool check_magic(u8 *magic)
 {
-    char buf[5];
-    memcpy(buf, magic, sizeof(buf));
-    buf[4] = '\0';
+    u8 buf[4];
+    memcpy(buf, ELF_MAGIC, sizeof(buf));
 
-    if (strcmp(buf, ELF_MAGIC) != 0)
-        return false;
+    for (int i = 0; i < (int) sizeof(buf); i++) {
+        if (buf[i] != magic[i])
+            return false;
+    }
     return true;
 }
 
@@ -25,7 +28,7 @@ static bool check_endian(u8 endian)
     return true;
 }
 
-void dump_elf_header(ehdr_t *ehdr)
+static void dump_elf_header(ehdr_t *ehdr)
 {
     log(LOG_INFO, "ELF HEADER");
 
@@ -80,21 +83,21 @@ static void load_program_headers(objfile_t *obj, const char *start)
         obj->phdrs[i] = *(phdr_t *) (start + sizeof(phdr_t)*i);
 }
 
-void load_elf_file(objfile_t *obj, const char *buf)
+void load_elf_file(objfile_t *obj)
 {
-    load_elf_header(obj, buf);
+    load_elf_header(obj, obj->mf.content);
 
     obj->phdrs = malloc(sizeof(phdr_t) * obj->ehdr.e_phnum);
     assert(obj->phdrs != NULL);
     obj->shdrs = malloc(sizeof(shdr_t) * obj->ehdr.e_shnum);
     assert(obj->shdrs != NULL);
 
-    load_section_headers(obj, buf + obj->ehdr.e_shoff);
-    load_program_headers(obj, buf + obj->ehdr.e_phoff);
+    load_section_headers(obj, obj->mf.content + obj->ehdr.e_shoff);
+    load_program_headers(obj, obj->mf.content + obj->ehdr.e_phoff);
 
 #if 0
     for (u16 i = 0; i < obj->ehdr.e_shnum; i++)
-        printf("name: %s\n", buf 
+        printf("name: %s\n", obj->mf.content 
                              + obj->shdrs[obj->ehdr.e_shstrndx].sh_offset
                              + obj->shdrs[i].sh_name);
 
@@ -103,3 +106,7 @@ void load_elf_file(objfile_t *obj, const char *buf)
 #endif
 }
 
+void load_ar_file(arfile_t *ar)
+{
+    (void) ar;
+}

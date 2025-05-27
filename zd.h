@@ -220,8 +220,6 @@ struct zd_dyna {
     size_t pos;     /* iterator position */
 };
 
-typedef struct zd_dyna dyna_t;
-
 ZD_DEF void zd_dyna_init(struct zd_dyna *da, size_t size,
         void (*clear_item)(void *));
 ZD_DEF void zd_dyna_append(struct zd_dyna *da, void *elem);
@@ -231,6 +229,17 @@ ZD_DEF void zd_dyna_set(struct zd_dyna *da, size_t idx, void *elem);
 ZD_DEF void *zd_dyna_get(struct zd_dyna *da, size_t idx);
 ZD_DEF void zd_dyna_destroy(struct zd_dyna *da);
 ZD_DEF void *zd_dyna_next(struct zd_dyna *da);
+
+typedef struct zd_dyna  dyna_t;
+
+#define dyna_init       zd_dyna_init
+#define dyna_append     zd_dyna_append
+#define dyna_insert     zd_dyna_insert
+#define dyna_remove     zd_dyna_remove
+#define dyna_set        zd_dyna_set
+#define dyna_get        zd_dyna_get
+#define dyna_destroy    zd_dyna_destroy
+#define dyna_next       zd_dyna_next
 
 #endif /* ZD_DS_DYNAMIC_ARRAY */
 
@@ -437,7 +446,7 @@ ZD_DEF void zd_list_set(struct zd_list *list, size_t idx, void *elem);
 #define FT_REG  1    /* regular file */
 #define FT_DIR  2    /* directory */
 
-#define MAX_PATH_SIZE 1024
+#define FS_MAX_PATH_SIZE 1024
 
 struct zd_meta_file {
     char *name;
@@ -925,6 +934,17 @@ static inline struct zd_cmdlopt *_get_rule(struct zd_cmdl *cmdl,
     return best_match;
 }
 
+static inline bool is_dyna_value_exist(struct zd_dyna *da,
+        struct zd_string *val)
+{
+    for (size_t i = 0; i < da->count; i++) {
+        struct zd_string *s = zd_dyna_get(da, i);
+        if (strcmp(s->base, val->base) == 0)
+            return true;
+    }
+    return false;
+}
+
 ZD_DEF void zd_cmdl_build(struct zd_cmdl *cmdl, int argc, char **argv)
 {
     int pos = 0;     /* track the arg */
@@ -1073,11 +1093,15 @@ ZD_DEF void zd_cmdl_build(struct zd_cmdl *cmdl, int argc, char **argv)
                 struct zd_string *val;
                 for (size_t i = 0; i < opt.vals.count; i++) {
                     val = zd_dyna_get(&opt.vals, i);
+                    if (is_dyna_value_exist(&saved_opt->vals, val))
+                        continue;
                     zd_dyna_append(&saved_opt->vals, val);
                 }
                 struct zd_string *arg;
                 for (size_t i = 0; i < opt.pargs.count; i++) {
                     arg = zd_dyna_get(&opt.pargs, i);
+                    if (is_dyna_value_exist(&saved_opt->pargs, arg))
+                        continue;
                     zd_dyna_append(&saved_opt->pargs, arg);
                 }
 
@@ -1305,7 +1329,7 @@ ZD_DEF bool zd_fs_copy(const char *src, const char *dest, bool is_binary)
     if (zd_fs_typeof(src) != FT_REG)
         return false;
 
-    char dest_path[MAX_PATH_SIZE];
+    char dest_path[FS_MAX_PATH_SIZE];
     if (zd_fs_typeof(dest) == FT_NOET) {
         if (dest[strlen(dest) - 1] == '\\' || dest[strlen(dest) - 1] == '/')
             zd_fs_mkdir(dest);
@@ -1330,7 +1354,7 @@ ZD_DEF bool zd_fs_copy(const char *src, const char *dest, bool is_binary)
 
 ZD_DEF bool zd_fs_mkdir(const char *pathname)
 {
-    char path_copy[MAX_PATH_SIZE];
+    char path_copy[FS_MAX_PATH_SIZE];
     strncpy(path_copy, pathname, sizeof(path_copy) - 1);
     path_copy[sizeof(path_copy) - 1] = '\0';
 
@@ -1385,7 +1409,7 @@ static bool _remove_dir_recursively(const char *dirpath)
     WIN32_FIND_DATA find_file_data;
     HANDLE h_find = INVALID_HANDLE_VALUE;
 
-    char dir[MAX_PATH_SIZE];
+    char dir[FS_MAX_PATH_SIZE];
     snprintf(dir, sizeof(dir), "%s\\*", dirpath);
 
     h_find = FindFirstFile(dir, &find_file_data);
@@ -1395,7 +1419,7 @@ static bool _remove_dir_recursively(const char *dirpath)
     do {
         if (strcmp(find_file_data.cFileName, ".") != 0 &&
                 strcmp(find_file_data.cFileName, "..") != 0) {
-            char filepath[MAX_PATH_SIZE];
+            char filepath[FS_MAX_PATH_SIZE];
             snprintf(filepath, sizeof(filepath), "%s\\%s",
                     dirpath, find_file_data.cFileName);
 
@@ -1421,7 +1445,7 @@ static bool _remove_dir_recursively(const char *dirpath)
     while ((entry = readdir(dp)) != NULL) {
         if (strcmp(entry->d_name, ".") != 0 &&
                 strcmp(entry->d_name, "..") != 0) {
-            char filepath[MAX_PATH_SIZE];
+            char filepath[FS_MAX_PATH_SIZE];
             snprintf(filepath, sizeof(filepath), "%s/%s",
                     dirpath, entry->d_name);
 
@@ -1509,7 +1533,7 @@ ZD_DEF bool zd_fs_loadd(const char *dirname, struct zd_meta_dir *res)
     assert(res->name != NULL);
 
 #if defined(_WIN32)
-    char buf[MAX_PATH_SIZE];
+    char buf[FS_MAX_PATH_SIZE];
     snprintf(buf, sizeof(buf), "%s\\*", dirname);
     WIN32_FIND_DATA findFileData;
     HANDLE hFind = FindFirstFile(buf, &findFileData);
