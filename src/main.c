@@ -9,16 +9,21 @@ static void define_rule(cmdl_t *cmdl)
 
 static void get_all_objfiles(cmdl_t *cmdl, dyna_t *objfiles)
 {
+    // single object file
     cmdlopt_t *opt_o = cmdl_getopt(cmdl, "o");
 
     for (size_t i = 0; i < opt_o->pargs.count; i++) {
         string_t *objname = dyna_get(&opt_o->pargs, i);
-        objfile_t *obj = new_objfile(objname->base);
-        load_elf_file(obj);
-        printf("%s\n", obj->name);
+        mf_t mf = {0};
+        fs_loadf(objname->base, &mf, true);
+
+        objfile_t *obj = new_objfile(mf.name, NULL, mf.content, mf.size);
         dyna_append(objfiles, obj);
+
+        fs_destroy_mf(&mf);
     }
 
+    // archive file (library)
     cmdlopt_t *opt_l = cmdl_getopt(cmdl, "l");
     cmdlopt_t *opt_L = cmdl_getopt(cmdl, "L");
 
@@ -31,12 +36,26 @@ static void get_all_objfiles(cmdl_t *cmdl, dyna_t *objfiles)
             snprintf(path, sizeof(path), "%s/lib%s.a", dir->base, file->base);
             if (fs_typeof(path) == FT_NOET)
                 continue;
-            // TODO: load archive file
-            arfile_t *ar = new_arfile(path);
-            printf("%s\n", ar->name);
-            // load_ar_file(ar);
+            mf_t mf = {0};
+            fs_loadf(path, &mf, true);
+
+            printf("%s\n", path);
+    
+            arfile_t *ar = new_arfile(mf.name, mf.content, mf.size);
+            load_ar_file(ar, objfiles);
+            destroy_arfile(ar);
+
+            fs_destroy_mf(&mf);
+
             break;
         }
+    }
+
+    // fill the elf struct for each object file
+    printf("object file count: %zu\n", objfiles->count);
+    for (size_t i = 0; i < objfiles->count; i++) {
+        objfile_t *obj = dyna_get(objfiles, i);
+        load_elf_file(obj);
     }
 }
 
@@ -47,7 +66,6 @@ int main(int argc, char **argv)
 
     define_rule(&cmdl);
     cmdl_build(&cmdl, argc, argv);
-    // cmdl_dump(&cmdl);
 
     dyna_t objfiles = {0};
     dyna_init(&objfiles, sizeof(objfile_t), destroy_objfile);

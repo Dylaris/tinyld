@@ -1,9 +1,11 @@
-/// ELF structure
+/// Some well-defined structure for specific file
 
-#ifndef TINYLD_ELF_H
-#define TINYLD_ELF_H
+#ifndef TINYLD_FILE_H
+#define TINYLD_FILE_H
 
 #include "ntype.h"
+
+// ELF file
 
 #define EI_CLASS        4
 #define EI_DATA         5
@@ -86,4 +88,28 @@ typedef struct program_header {
     u64 p_align;
 } phdr_t;
 
-#endif // TINYLD_ELF_H
+// Archive file
+
+#define AR_MAGIC    "!<arch>\n"
+#define AR_STRTAB   "// "
+#define AR_SYMTAB1  "/ "
+#define AR_SYMTAB2  "/SYM64/ "
+
+//          <<< 2 bytes aligned >>>
+//
+// !<arch>\n[ section ][ section ]...[ section ]
+// section => [ahdr_t] [ ... ]
+//                        ^
+//                  obj file content
+
+typedef struct archive_header {
+    u8 a_name[16];
+    u8 a_date[12];
+    u8 a_uid[6];
+    u8 a_gid[6];
+    u8 a_mode[8];
+    u8 a_size[10];
+    u8 a_fmag[2];
+} ahdr_t;
+
+#endif // TINYLD_FILE_H
