@@ -9,25 +9,41 @@ static void define_rule(cmdl_t *cmdl)
 
 static void get_all_objfiles(cmdl_t *cmdl, dyna_t *objfiles)
 {
+#define parse_single_obj_file(path)                                         \
+    do {                                                                    \
+        mf_t mf = {0};                                                      \
+        fs_loadf(path, &mf, true);                                          \
+                                                                            \
+        objfile_t *obj = new_objfile(mf.name, NULL, mf.content, mf.size);   \
+        dyna_append(objfiles, obj);                                         \
+                                                                            \
+        fs_destroy_mf(&mf);                                                 \
+    } while (0)
+
     // single object file
     cmdlopt_t *opt_o = cmdl_getopt(cmdl, "o");
-
     for (size_t i = 0; i < opt_o->pargs.count; i++) {
         string_t *objname = dyna_get(&opt_o->pargs, i);
-        mf_t mf = {0};
-        fs_loadf(objname->base, &mf, true);
-
-        objfile_t *obj = new_objfile(mf.name, NULL, mf.content, mf.size);
-        dyna_append(objfiles, obj);
-
-        fs_destroy_mf(&mf);
+        parse_single_obj_file(objname->base);
     }
+#undef parse_single_obj_file
+
+#define parse_archive_file(path)                                    \
+    do {                                                            \
+        mf_t mf = {0};                                              \
+        fs_loadf(path, &mf, true);                                  \
+                                                                    \
+        arfile_t *ar = new_arfile(mf.name, mf.content, mf.size);    \
+        load_ar_file(ar, objfiles);                                 \
+        destroy_arfile(ar);                                         \
+                                                                    \
+        fs_destroy_mf(&mf);                                         \
+    } while (0)
 
     // archive file (library)
     cmdlopt_t *opt_l = cmdl_getopt(cmdl, "l");
     cmdlopt_t *opt_L = cmdl_getopt(cmdl, "L");
-
-    char path[MAX_PATH_SIZE];
+    char path[MAX_PATH_SIZE + 1];
 
     for (size_t i = 0; i < opt_l->vals.count; i++) {
         string_t *file = dyna_get(&opt_l->vals, i);
@@ -36,26 +52,18 @@ static void get_all_objfiles(cmdl_t *cmdl, dyna_t *objfiles)
             snprintf(path, sizeof(path), "%s/lib%s.a", dir->base, file->base);
             if (fs_typeof(path) == FT_NOET)
                 continue;
-            mf_t mf = {0};
-            fs_loadf(path, &mf, true);
-
-            printf("%s\n", path);
-    
-            arfile_t *ar = new_arfile(mf.name, mf.content, mf.size);
-            load_ar_file(ar, objfiles);
-            destroy_arfile(ar);
-
-            fs_destroy_mf(&mf);
-
+            parse_archive_file(path);
             break;
         }
     }
+#undef parse_archive_file
 
     // fill the elf struct for each object file
     printf("object file count: %zu\n", objfiles->count);
     for (size_t i = 0; i < objfiles->count; i++) {
         objfile_t *obj = dyna_get(objfiles, i);
         load_elf_file(obj);
+        printf("%s\n", obj->name);
     }
 }
 

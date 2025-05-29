@@ -265,6 +265,7 @@ ZD_DEF void zd_string_append(struct zd_string *str, const char *fmt, ...);
 ZD_DEF struct zd_string zd_string_sub(const char *str, size_t src, size_t dest);
 ZD_DEF struct zd_string zd_string_rep(const char *str, size_t times);
 ZD_DEF void zd_string_destroy(void *arg);
+ZD_DEF bool zd_string_prefix(const char *str, const char *prefix);
 
 typedef struct zd_string string_t;
 
@@ -272,6 +273,7 @@ typedef struct zd_string string_t;
 #define string_sub      zd_string_sub
 #define string_rep      zd_string_rep
 #define string_destroy  zd_string_destroy
+#define string_prefix   zd_string_prefix
 
 #endif /* ZD_DS_STRING */
 
@@ -1991,6 +1993,18 @@ ZD_DEF void zd_string_destroy(void *arg)
     str->base = NULL;
     str->length = 0;
     str->capacity = 0;
+}
+
+ZD_DEF bool zd_string_prefix(const char *str, const char *prefix)
+{
+    if (strlen(prefix) > strlen(str))
+        return false;
+
+    for (size_t i = 0; i < strlen(prefix); i++) {
+        if (str[i] != prefix[i])
+            return false;
+    }
+    return true;
 }
 
 #endif /* ZD_DS_STRING */

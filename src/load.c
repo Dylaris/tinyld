@@ -118,20 +118,52 @@ static bool ar_check_magic(char *magic)
     return true;
 }
 
+#define bytes_to_size(bytes, size)                                  \
+    do {                                                            \
+        size_t end = 0;                                             \
+        for (size_t i = 0; i < sizeof(bytes); i++) {                \
+            if (bytes[i] < '0' || bytes[i] > '9')                   \
+                break;                                              \
+            end++;                                                  \
+        }                                                           \
+                                                                    \
+        string_t str = string_sub((const char *) bytes, 0, end);    \
+        size = atoi(str.base);                                      \
+        string_destroy(&str);                                       \
+    } while (0)
+
 static size_t get_ahdr_size(ahdr_t *ahdr)
 {
-    size_t end = 0;
-    for (size_t i = 0; i < sizeof(ahdr->a_size); i++) {
-        if (ahdr->a_size[i] < '0' || ahdr->a_size[i] > '9')
-            break;
-        end++;
-    }
-
-    string_t str = string_sub((const char *) ahdr->a_size, 0, end);
-    size_t size = atoi(str.base);
-    string_destroy(&str);
+    size_t size = 0;
+    bytes_to_size(ahdr->a_size, size);
 
     return size;
+}
+
+static void get_ahdr_name(ahdr_t *ahdr, char *strtab, char *buf)
+{
+    char *start = (char *) ahdr->a_name;
+    if (string_prefix(start, "/")) {
+        // long file name 
+        char bytes[sizeof(ahdr->a_name) - 1];
+        memcpy(bytes, start + 1, sizeof(bytes));
+
+        size_t index = 0;
+        bytes_to_size(bytes, index);
+
+        char *end = strstr(&strtab[index], "/\n");
+        size_t len = MIN(end - &strtab[index], MAX_PATH_SIZE);
+        memcpy(buf, &strtab[index], len);
+        buf[len] = '\0';
+    } else {
+        // short file name
+        char *end = strchr(start, '/');
+        assert(end != NULL);
+        size_t len = MIN(end - start, MAX_PATH_SIZE);
+        assert(len != 0);
+        memcpy(buf, start, len);
+        buf[len] = '\0';
+    }
 }
 
 void load_ar_file(arfile_t *ar, dyna_t *objs)
@@ -139,9 +171,9 @@ void load_ar_file(arfile_t *ar, dyna_t *objs)
     if (!ar_check_magic(ar->content))
         return;
 
-    size_t remove_idx = objs->count;
-
     size_t pos = strlen(AR_MAGIC);
+    char *strtab = NULL, *symtab = NULL;
+    char path[MAX_PATH_SIZE + 1];
 
     // 2 bytes aligned
     while (ar->size > pos + 1) {
@@ -150,16 +182,18 @@ void load_ar_file(arfile_t *ar, dyna_t *objs)
         ahdr_t ahdr = *(ahdr_t *) (ar->content + pos);
         size_t start = pos + sizeof(ahdr_t);
         size_t end = start + get_ahdr_size(&ahdr);
-
-        objfile_t *obj = new_objfile(NULL, NULL, 
-                ar->content + start, end - start);
-        dyna_append(objs, obj);
-
         pos = end;
-    }
 
-    // I don't know why, the first tow section in archive file
-    // is not a valid ELF file
-    dyna_remove(objs, remove_idx);
-    dyna_remove(objs, remove_idx);
+        if (string_prefix((const char *) ahdr.a_name, AR_SYMTAB1) ||
+            string_prefix((const char *) ahdr.a_name, AR_SYMTAB2)) {
+            symtab = ar->content + start;
+        } else if (string_prefix((const char *) ahdr.a_name, AR_STRTAB)) {
+            strtab = ar->content + start;
+        } else {
+            get_ahdr_name(&ahdr, strtab, path);
+            objfile_t *obj = new_objfile(path, ar->name, 
+                    ar->content + start, end - start);
+            dyna_append(objs, obj);
+        }
+    }
 }

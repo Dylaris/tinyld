@@ -12,6 +12,9 @@
 
 #define MAX_PATH_SIZE 255
 
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 // objfile.c
 typedef struct object_file {
     char *name;

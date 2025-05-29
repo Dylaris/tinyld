@@ -1,11 +1,21 @@
 # tinyld
 
-only support `linux`
+## Platform
+- only support `linux`
 
-usage
+## Feature
+- only support `static link`
+
+## Usage
 
 ```console
 $ gcc -o build build.c
 $ ./build -c
-$ ./tinyld test/hello
+$ ./build -t
 ```
+## TODO
+- parse the symbol in a elf object file
+- remove redudant object files from archive file 
+- merge sections
+- relocation
+- output an executable file

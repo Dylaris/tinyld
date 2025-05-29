@@ -88,6 +88,29 @@ typedef struct program_header {
     u64 p_align;
 } phdr_t;
 
+// symbol binding
+#define STB_LOCAL   0
+#define STB_GLOBAL  1
+#define STB_WEAK    2
+
+// symbol type
+#define STT_NOTYPE  0
+#define STT_OBJECT  1
+#define STT_FUNC    2
+#define STT_SECTION 3
+#define STT_FILE    4
+#define STT_COMMON  5
+#define STT_TLS     6
+
+typedef struct symbol {
+    u32 st_name;
+    u8  st_info;
+    u8  st_other;
+    u16 st_shndx;
+    u64 st_value;
+    u64 st_size;
+} sym_t;
+
 // Archive file
 
 #define AR_MAGIC    "!<arch>\n"
